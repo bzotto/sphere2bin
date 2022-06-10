@@ -4,7 +4,7 @@ This documents the binary cassette logical format used by Sphere 1 microcomputer
 
 ## Overview
 
-The Sphere 1 was an early microcomputer based on the Motorola 6800 and manufactured by Sphere Corp in Utah, from 1975-1977. Its primary nonvolatile storage means was the data cassette, driven by the "SIM/1" serial interface board. That board had a 256-byte onboard PROM, whose firmware defines this logical format. 
+The Sphere 1 was an early microcomputer based on the Motorola 6800 and manufactured by Sphere Corp in Utah, from 1975-1977. Its primary nonvolatile storage means was the data cassette, driven by the "SIM/1" serial interface board. That board had a 256-byte onboard "cassette driver" PROM, whose firmware defines this logical format. 
 
 Sphere used the very early (and very slow) 300bps "Kansas City"/Byte format for the generation and reading of audio signals. The KC format is not documented here; it is assumed that you are working with cassette data which has already been converted from an audio recording into a digital byte stream.
 
@@ -16,7 +16,7 @@ Note that the format encodes the name of the block but (unlike some other data i
 
 Block names are two-byte values, generally intended to be ASCII characters that would have some useful connection to the program, akin to a rudimentary file name. E.g. the Sphere mini-assembler provided on cassette used `MA` for its block name. 
 
-Early cassette firmware ("SYS-2") would allow the user to specify a block name, load address, and *block count* to the load command. If the given block count exceeded one, the firmware would increment the (numeric) value of the first character of the block name when looking for subsequent blocks. (This suggests that multiblock programs may have preferred non-ASCII numeric values for names.) Later firmware versions dropped the block count idea.
+Early cassette interface firmware ("SYS-2") would allow the user to specify a block name, load address, and *block count* to the load command. If the given block count exceeded one, the firmware would increment the (numeric) value of the 16-bit block name when looking for subsequent blocks. (This suggests short sequences of block names such as `B0`, `B1`, `B2` etc.) Later firmware versions appeared to drop the block count idea.
 
 ## Block format
 
