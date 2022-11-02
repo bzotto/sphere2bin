@@ -8,7 +8,7 @@
 //  Sphere 1 and other Sphere microcomputers. Create a state object,
 //  then call begin_read to set it up, then call read_byte(s) until all of the
 //  input data is exhausted. The library will invoke your callback function
-//  at the completion of every block in the cassette data.
+//  at the completion of every block found in the cassette data stream.
 //
 //  Format details:
 //
@@ -32,12 +32,20 @@
 //   there is no information about load address stored on the tape; the user is
 //   expected to provide the load address (and request the block by name).
 //
+//   Extraneous bytes contained outside of logical blocks are ignored (both here and
+//   by the Sphere firmware).
+//
 
 #ifndef SPHERECAS_H
 #define SPHERECAS_H
 
 #include <stdio.h>
 #include <stdint.h>
+
+enum spherecas_blocktype {
+    SPHERECAS_BLOCKTYPE_TEXT,
+    SPHERECAS_BLOCKTYPE_OBJECT
+};
 
 enum spherecas_error {
     SPHERECAS_ERROR_NONE,
@@ -52,6 +60,7 @@ struct spherecas_state {
     int       data_count_read;
     uint8_t   data[0x10000];  
     uint8_t   checksum;
+    enum spherecas_blocktype block_type;
     void *    context;
 };
 
@@ -72,15 +81,17 @@ void spherecas_read_bytes(struct spherecas_state * restrict state,
 //      block_name      - Two characters indicating the "name" of this block
 //      data            - Pointer to the start of the data payload
 //      length          - Length of data payload
+//      type            - object (code) or (likely) text or source
 //      error           - Success (0) or an error code
 //
 // Note that while the interpreted record is passed entirely as arguments,
 // the raw data is available in the `spherecas_state` structure, which includes the
 // address and checksum as part of data.
-extern void spherecas_data_read(struct spherecas_state * state ,
-                                char block_name[],
-                                uint8_t *data,
-                                int length,
-                                enum spherecas_error error);
+extern void spherecas_block_read(struct spherecas_state * state ,
+                                 char block_name[],
+                                 uint8_t * data,
+                                 int length,
+                                 enum spherecas_blocktype type,
+                                 enum spherecas_error error);
 
 #endif /* SPHERECAS_H */

@@ -29,6 +29,7 @@ void spherecas_begin_read(struct spherecas_state * state)
     state->data_count_expected = 0;
     state->data_count_read = 0;
     state->checksum = 0;
+    state->block_type = SPHERECAS_BLOCKTYPE_TEXT;
 }
 
 void spherecas_read_byte(struct spherecas_state * state, uint8_t byte)
@@ -45,6 +46,9 @@ void spherecas_read_byte(struct spherecas_state * state, uint8_t byte)
         {
             if (byte == HEADER_ESC) {
                 state->read_state = READ_DATA_LENGTH_HIGH;
+            } else if (byte == HEADER_SYNC) {
+                // Do nothing, remain in this state.
+                ;
             } else {
                 // Resync
                 state->read_state = READ_SYNC;
@@ -83,6 +87,13 @@ void spherecas_read_byte(struct spherecas_state * state, uint8_t byte)
             if (state->data_count_read == state->data_count_expected) {
                 state->read_state++;
             }
+            // If any values in the block have their high bit set, the block
+            // is likely to contain object code. If all bytes are 7-bit ASCII
+            // then the block is likely to be text or source (the default).
+            // This is the heuristic used by Programma's Tape Directory program.
+            if (byte & 0x80) {
+                state->block_type = SPHERECAS_BLOCKTYPE_OBJECT;
+            }
             break;
         }
         case READ_ETB:
@@ -91,7 +102,7 @@ void spherecas_read_byte(struct spherecas_state * state, uint8_t byte)
                 state->read_state = READ_CHECKSUM;
             } else {
                 // Report out an error with this block.
-                spherecas_data_read(state, state->block_name, state->data, state->data_count_read, SPHERECAS_ERROR_TRAILER);
+                spherecas_block_read(state, state->block_name, state->data, state->data_count_read, state->block_type, SPHERECAS_ERROR_TRAILER);
                 // Go back to sync here.
                 spherecas_begin_read(state);
             }
@@ -103,7 +114,7 @@ void spherecas_read_byte(struct spherecas_state * state, uint8_t byte)
             if (byte != state->checksum) {
                 error = SPHERECAS_ERROR_CHECKSUM;
             }
-            spherecas_data_read(state, state->block_name, state->data, state->data_count_read, error);
+            spherecas_block_read(state, state->block_name, state->data, state->data_count_read, state->block_type, error);
             spherecas_begin_read(state);
             break;
         }

@@ -1,16 +1,16 @@
 # Sphere cassette tape format
 
-This documents the binary cassette logical format used by Sphere 1 microcomputers (and other Sphere machines). 
+This documents the binary cassette logical format used by Sphere microcomputers (i.e., the Sphere 1 and other Sphere machines). 
 
 ## Overview
 
-The Sphere 1 was an early microcomputer based on the Motorola 6800 and manufactured by Sphere Corp in Utah, from 1975-1977. Its primary nonvolatile storage means was the data cassette, driven by the "SIM/1" serial interface board. That board had a 256-byte onboard "cassette driver" PROM, whose firmware defines this logical format. 
+The Sphere was an early microcomputer based on the Motorola 6800 and manufactured by Sphere Corp in Utah, from 1975-1977. Its primary nonvolatile storage means was the data cassette, driven by the "SIM/1" serial interface board. That board had a 256-byte onboard "cassette driver" PROM, whose firmware defines this logical format. 
 
 Sphere used the very early (and very slow) 300bps "Kansas City"/Byte format for the generation and reading of audio signals. The KC format is not documented here; it is assumed that you are working with cassette data which has already been converted from an audio recording into a digital byte stream.
 
-The basic unit of data in Sphere cassette storage is a "block". Each block can be of variable size and has a two-character "name". In general, a single program may be contained within one block, and in practice most Sphere cassettes likely contained a single block. Multiple blocks *can* be stored sequentially on a single cassette, differentiated by their names.
+The basic unit of data in Sphere cassette storage is a "block" (think: file). Each block can be of variable size and has a two-character "name". In general, a single program may be contained within one block, and in practice many Sphere cassettes contained a single block. Multiple blocks can be stored sequentially on a single cassette, differentiated by their names.
 
-Note that the format encodes the name of the block but (unlike some other data image formats) does not encode load address information. The load address was generally provided on the label of the cassette, and specified at load time by the user. (The block name was also generally provided on the cassette label, 
+Note that the format encodes the name of the block but (unlike some other object code formats) does not encode load address information. The load address was generally provided on the label of the cassette, and specified at load time by the user. (The block name was also generally provided on the cassette label.)
 
 ### Note on block names
 
@@ -29,11 +29,13 @@ Each block on a cassette uses the following sequential format:
 - (raw data) binary data for this block. The count of these bytes is equal to the count stored above, plus one. (There are thus no "zero-length" blocks.)
 - (**1** byte) end-of-transmission marker. Constant value `0x17`
 - (**1** byte) checksum byte (see below).
-- (**3** bytes) final trailer bytes. (Generally same value as the checksum, just repeated three more times, but not validated as such.)
+- (**3** bytes) final trailer bytes. (In practice usually the same value as the checksum, just repeated three more times.)
 
 The checksum is just a trivial 8-bit sum across the data portion (only). The 8-bit counter rolls over when it overflows. _"Check sum"_ indeed!
+
+The final trailer bytes are in practice optional and appear to have been in some cases omitted; default Sphere firmware will write them out, but they are not validated on read as long as the checksum matches.
  
-A cassette can have more than one of these blocks present on the tape, which are differentiated by the user by the "name".
+There is no overall "catalog" structure for a cassette. A cassette can have multiple blocks present on the tape, which are typically differentiated to the user by the "name". 
 
 ### Note on synchronization
 
@@ -43,5 +45,5 @@ For this reason, if you are creating cassette images, ensure that either (1) you
 
 -----
 
-This format was reverse-engineered from the Sphere firmware by Ben Zotto, 2022.
+This format was reverse-engineered from Sphere firmware and original example cassettes by Ben Zotto, 2022.
 

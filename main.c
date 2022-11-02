@@ -41,7 +41,11 @@
 
 // Global information accessed by the read callback function.
 static int ListOnly = 0;
-static int CurrentBlockNumber = 0;
+static int CurrentBlockIndex = 0;
+static char * FilenameBase = NULL;
+
+// Fwd declaration
+static char * remove_path_extension(const char * str);
 
 void print_usage(const char * name) {
     printf("usage: %s [-l] input_file\n", name);
@@ -54,7 +58,7 @@ int main(int argc, char **argv) {
         print_usage(argv[0]);
         return -1;
     }
-    
+
     const char * input_file_name = NULL;
     
     // Parse command line options.
@@ -76,14 +80,16 @@ int main(int argc, char **argv) {
                 break;
         }
     }
-    
+
     // Require exactly one input file name
     if (optind != argc - 1) {
         print_usage(argv[0]);
         return -1;
     }
+    
     input_file_name = argv[optind];
-            
+    FilenameBase = remove_path_extension(input_file_name);
+    
     // Open the input file.
     FILE * file = fopen(input_file_name, "rb");
     if (!file) {
@@ -119,49 +125,83 @@ int main(int argc, char **argv) {
         free(data);
         return -1;
     }
+        
+    printf("\n%-10s%-10s%-10s%-10s%-10s\n", "BLOCK", "NAME", "LENGTH", "TYPE", "ERROR");
+    printf("-----     ----      ------    ----      -----\n");
     
     // Set up the input parsing state machine and run the input through it.
     struct spherecas_state read_state;
     spherecas_begin_read(&read_state);
     spherecas_read_bytes(&read_state, data, (int)bytes_read);
     
-    if (CurrentBlockNumber == 0) {
-        printf("Done. No valid blocks found.\n");
-    } else {
-        printf("Done. %d block(s) examined.\n", CurrentBlockNumber);
-    }
-    
+    printf("\nDone. %d block(s) found.\n", CurrentBlockIndex);
     free(data);
+    free(FilenameBase);
 }
 
 // This is the callback function for the data reader
-void spherecas_data_read(struct spherecas_state * state ,
-                        char block_name[],
-                        uint8_t *data,
-                        int length,
-                        enum spherecas_error error)
+void spherecas_block_read(struct spherecas_state * state ,
+                         char block_name[],
+                         uint8_t * data,
+                         int length,
+                         enum spherecas_blocktype type,
+                         enum spherecas_error error)
 {
-    printf("Saw block %c%c (%d bytes)\n", block_name[0], block_name[1], length);
+    const char * type_str = (type == SPHERECAS_BLOCKTYPE_TEXT ? "Text" : "Obj");
+    char * error_str = "";
     if (error == SPHERECAS_ERROR_TRAILER) {
-        printf("** Trailer error\n");
+        error_str = "Trailer";
     } else if (error == SPHERECAS_ERROR_CHECKSUM) {
-        printf("** Checksum error\n");
+        error_str = "Checksum";
+    }
+    printf("%-10d%c%c        %-10d%-10s%-10s\n", CurrentBlockIndex+1, block_name[0], block_name[1], length, type_str, error_str);
+
+    if (!ListOnly) {
+        char * output_name = malloc(strlen(FilenameBase) + 12);
+        sprintf(output_name, "%s-%c%c_%d.bin", FilenameBase, block_name[0], block_name[1], CurrentBlockIndex + 1);
+        FILE * outfile = fopen(output_name, "wb");
+        if (!outfile) {
+            printf("\tFailed to open output file for writing %s\n\n", output_name);
+            return;
+        }
+        fwrite(data, 1, length, outfile);
+        fclose(outfile);
+        printf("\t--> Block written to file %s\n\n", output_name);
+        free(output_name);
     }
 
-    CurrentBlockNumber++;
-
-    if (ListOnly) {
-        return;
-    }
-
-    char outputname[4 + 1 + 5 + 1 + 2 + 1 + 3];  // 0_block_NA.bin
-    sprintf(outputname, "%d_block_%c%c.bin", CurrentBlockNumber-1, block_name[0], block_name[1]);
-    FILE * outfile = fopen(outputname, "wb");
-    if (!outfile) {
-        printf("Failed to open output file for writing %s\n", outputname);
-        return;
-    }
-    fwrite(data, 1, length, outfile);
-    fclose(outfile);
-    printf("--> Block written out to file %s\n", outputname);
+    CurrentBlockIndex++;
 }
+
+
+// remove_path_extension is adapted from
+//  https://stackoverflow.com/a/2736841/73297
+// CC BY-SA 4.0
+static char * remove_path_extension(const char * str)
+{
+    char *retstr, *lastext, *lastpath;
+
+    if (str == NULL) return NULL;
+    if ((retstr = malloc(strlen(str) + 1)) == NULL) return NULL;
+
+    strcpy(retstr, str);
+    lastext = strrchr(retstr, '.');
+    lastpath = strrchr(retstr, '/');
+
+    // If it has an extension separator.
+    if (lastext != NULL) {
+        // and it's to the right of the path separator.
+        if (lastpath != NULL) {
+            if (lastpath < lastext) {
+                // then remove it.
+                *lastext = '\0';
+            }
+        } else {
+            // Has extension separator with no path separator.
+            *lastext = '\0';
+        }
+    }
+
+    return retstr;
+}
+
