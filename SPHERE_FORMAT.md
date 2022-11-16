@@ -37,11 +37,12 @@ The final trailer bytes are in practice optional and appear to have been in some
  
 There is no overall "catalog" structure for a cassette. A cassette can have multiple blocks present on the tape, which are typically differentiated to the user by the "name". 
 
-### Note on synchronization
+### Notes on synchronization
 
-The cassette load firmware in the `SYS2NF` cassette ROM can be asked to load a specific block by name. If there are multiple blocks on the tape, the firmware will skip non-matching blocks and attempt to re-sync at the start of each following one. This should generally be a reliable system. However, is it _possible_ that the fixed header sync sequence (four bytes: `0x16` `0x16` `0x16` `0x1B`) occurs by chance within a valid data block. It's not *especially* likely, but for example the non-gibberish instruction sequence of `LDAA $1616; TAB; ABA` would cause a false sync, which would throw off the rest of the tape read.
-
+1. The cassette load firmware in the `SYS2NF` cassette ROM can be asked to load a specific block by name. If there are multiple blocks on the tape, the firmware will skip non-matching blocks and attempt to re-sync at the start of each following one. This should generally be a reliable system. However, is it _possible_ that the fixed header sync sequence (four bytes: `0x16` `0x16` `0x16` `0x1B`) occurs by chance within a valid data block. It's not *especially* likely, but for example the non-gibberish instruction sequence of `LDAA $1616; TAB; ABA` would cause a false sync, which would throw off the rest of the tape read.
 For this reason, if you are creating cassette images, ensure that either (1) you only use one block per image, or (2) you don't have accidental sync sequences in your data stream. 
+
+2. It is (was) fairly common to reuse cassettes and overwrite prior data, sometimes resulting in older blocks being only partially overwritten. A block whose header is overwritten but whose *trailer* remains will cause no problems upon read (it will all be safely ignored). However, an orphaned but intact *header* can trigger a read attempt for the vanished length, which will result in a trailer error but also potentially "shadow" subsequent valid blocks. The `sphere2bin` tool (like actual Sphere hardware) will not see these unless the offending header is neutralized.
 
 -----
 
